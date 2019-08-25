@@ -9,22 +9,110 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Project summary
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+After cleaning the data set in pml-training.csv, I have divided the pml-training data file into two datasets, one for training, and one for testing. I have at the end landed on a random forest. This model was then applied at the testing part of the dataset, and i achieved 99% accuracy and agreement (Kappa). The model was the used to predict the "classe" in the pml-testing.cvs filne, and the model achieved 100 % accuracy.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
-summary(cars)
+## Data cleaning
+The file contained many columns that did not have many data points, mostly NA. I deleted all these columns. There was some data here, but so little, that in the larger picture, it did not add anything siginificant. Also the time and date columns were not usable in the state they were in. I deleted these, and kept only the timestamp 1 and 2. Secondly, i changed all NOs to 0, and all YES entries to 1. User names were changed from carlito, pedro etc to numbers (0,1,etc.)
+
+
+Some of the coding in R is included below:
+
+To load the files into R, and i also loaded the library, caret.
+```{r Loading files}
+
+mydata <- read.csv("pml-training.csv")
+examdata <- read.csv("pml-testing.csv")
+library(caret)
+
+
 ```
 
-## Including Plots
+I created a new dataset, and called it cordata. In this file i deleted the classe column. I then ran a correlation test between all the factors. I then retrieved all instances where the correlation coefficient was higher than 0.9, and lower than -0.9. I deleted one factor in each pair where there was a high correlation. I didnt use the cordata data set after this. 
 
-You can also embed plots, for example:
+the code for this is :
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+mydata -> cordata
+cordata$classe <- NULL
+cor.data = cor(cordata)
+print(cor.data > (0.9))
+
+
+## Datasplit to get cross validation 
+I split the data file into two segments. I decided to make a 50/50 split. This way when i have a model, I can test it on a different dataset from the same master set. My two datasets are created equal. 
+
+```{r Splitting data}
+inTrain <- createDataPartition(y=mydata$classe, p=0.5, list=FALSE)
+training <- mydata[inTrain,]
+testing <- mydata[-inTrain,]
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+I then tried to creat a model based on trees, and then used to predict on the . 
+The code was a follows:
+
+
+```{r Tree}
+modFit <- train(classe ~., method="rpart", data=training)
+
+```
+
+The model was used to predict on the testing part of the data using following code:
+
+predict(modFit,newdata=testing)
+
+
+```{r Prediction, include=FALSE}
+predict(modFit,newdata=testing)
+```
+
+I then created a table to see how correct the model was:
+
+```{r Table Tree}
+table(predict(modFit,testing),testing$classe)
+```
+
+Pretty bad!
+
+I then created a new model, this time using random forest. Code below. 
+
+
+
+```{r Model Random Forest, echo=TRUE}
+
+modFitRf <- train(classe ~., method="rf", data=training)
+
+```
+
+This model was also evaluated against the testing part of the data. with following code:
+
+predict(modFitRf,newdata=testing)
+
+```{r Predict Random Forest, include=FALSE}
+predict(modFitRf,newdata=testing)
+```
+
+Again, I ran a table:
+
+```{r Table RF}
+table(predict(modFitRf,testing),testing$classe)
+```
+
+
+Have you ever seen anything so beautiful?
+
+I ran the model on the final test set (pml-testing.csv). You may recall that i had loaded this file as examdata. 
+
+```{r Exam}
+predict(modFitRf,newdata=examdata)
+```
+
+
+This is by the way the 100 % correct solution to the final quiz. 
+
+
+## Sample error
+The first model was pretty bad, I didnt need to run any calculations to see that this didnt work. The second model on the other hand was so good that i didnt even need any addition calculation other than what i had. The table was nearly perfect. With high accuracy and agreement. 
+
